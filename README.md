@@ -2,11 +2,19 @@
 
 ## Group Elements
 
-Identify all group elements (numbers and names).
+- up202204943 Gonçalo Pinto
+- up202205143 José Granja
+- up202205000 Manuel Mo
 
-- upXXXXX Name of element 1
-- upXXXXX Name of element 2
-- upXXXXX Name of element 3
+## How to run
+
+### Reverse
+
+```
+cd reverse
+dafny reverse.dfy IoNative.cs
+./reverse SourceFile DestFile
+```
 
 ## Accomplished Work
 Describe the work you have accomplished so far, and any work you have left to do. Describe also any extras you have implemented beyond the requirements.
