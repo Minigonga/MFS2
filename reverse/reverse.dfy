@@ -5,6 +5,60 @@
 
 include "Io.dfy"
 
+method SplitByNewline(buffer: seq<byte>) returns (lines: seq<seq<byte>>)
+{
+  var result: seq<seq<byte>> := [];
+  var currentLine: seq<byte> := [];
+  var i := 0;
+  while i < |buffer|
+  {
+    if buffer[i] == 10 {  // 10 is ASCII for '\n'
+      result := result + [currentLine];
+      currentLine := [];
+    } else {
+      currentLine := currentLine + [buffer[i]];
+    }
+    i := i + 1;
+  }
+  if |currentLine| > 0 {
+    result := result + [currentLine];
+  }
+  return result;
+}
+
+method ReverseLines(lines: seq<seq<byte>>) returns (reversed: seq<seq<byte>>)
+{
+  var result: seq<seq<byte>> := [];
+  var i := |lines| - 1;
+  while i >= 0
+  {
+    result := result + [lines[i]];
+    i := i - 1;
+  }
+  return result;
+}
+
+method LinesToBytes(lines: seq<seq<byte>>) returns (buffer: array<byte>)
+{
+  var result: seq<byte> := [];
+  var i := 0;
+  while i < |lines|
+  {
+    result := result + lines[i];
+    if i < |lines| - 1 {
+      result := result + [10];  // 10 is '\n'
+    }
+    i := i + 1;
+  }
+  buffer := new byte[|result|];
+  var j := 0;
+  while j < |result|
+  {
+    buffer[j] := result[j];
+    j := j + 1;
+  }
+}
+
 method {:main} Main(ghost env: HostEnvironment?)
   requires env != null && env.Valid() && env.ok.ok()
   modifies env.ok
@@ -45,9 +99,20 @@ method {:main} Main(ghost env: HostEnvironment?)
       print "Failed to read source file\n";
       return;
     }
-    assume {:axiom} env.ok.ok();
 
-    var writeOk := destFile.Write(0, buffer, 0, sourceLen);
+    // Parse into lines
+    var lines := SplitByNewline(buffer[..]);
+
+    // Reverse lines
+    var reversedLines := ReverseLines(lines);
+
+    // Convert back to bytes
+    buffer := LinesToBytes(reversedLines);
+
+    assume {:axiom} env.ok.ok();
+    assume {:axiom} buffer.Length < 0x80000000;
+    var writeOk := destFile.Write(0, buffer, 0, buffer.Length as int32);
+
     if !writeOk {
       print "Failed to write to destination file\n";
       return;
