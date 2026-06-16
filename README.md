@@ -10,6 +10,7 @@
 
 ### Reverse
 
+Create a "SourceFile" in the reverse file with the text to reverse the lines.
 ```
 cd reverse
 dafny reverse.dfy IoNative.cs

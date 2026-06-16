@@ -109,22 +109,19 @@ method {:main} Main(ghost env: HostEnvironment?)
     // Convert back to bytes
     buffer := LinesToBytes(reversedLines);
 
-    assume {:axiom} env.ok.ok();
-    assume {:axiom} buffer.Length < 0x80000000;
+    assume {:axiom} buffer.Length < 0x80000000; // TODO: ensures para tirar este assume
     var writeOk := destFile.Write(0, buffer, 0, buffer.Length as int32);
 
     if !writeOk {
       print "Failed to write to destination file\n";
       return;
     }
-    assume {:axiom} env.ok.ok();
 
     var closeSourceOk := sourceFile.Close();
     if !closeSourceOk {
       print "Failed to close source file\n";
       return;
     }
-    assume {:axiom} env.ok.ok();
 
     var closeDestOk := destFile.Close();
     if !closeDestOk {
