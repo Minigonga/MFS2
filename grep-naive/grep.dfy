@@ -5,57 +5,39 @@
 
 include "Io.dfy"
 
-// Convert byte array to sequence of characters for comparison
-function BytesToChars(bytes: seq<byte>): seq<char>
-{
-    if |bytes| == 0 then []
-    else [bytes[0] as char] + BytesToChars(bytes[1..])
-}
+// function CharToLower(c: char): char
+// {
+//     if 'A' <= c <= 'Z' then
+//         ((c as int - 'A' as int + 'a' as int) as char)
+//     else
+//         c
+// }
 
-// Check if pattern matches at a specific position in text
-function MatchAt(text: seq<char>, pattern: seq<char>, pos: int): bool
-    requires 0 <= pos <= |text|
-    requires pattern != []
-{
-    if pos + |pattern| > |text| then
-        false
-    else
-        text[pos..pos + |pattern|] == pattern
-}
-
-function CharToLower(c: char): char
-{
-    if 'A' <= c <= 'Z' then
-        ((c as int - 'A' as int + 'a' as int) as char)
-    else
-        c
-}
-
-function CharToLowerWithByte(b: byte): byte
-{
-    if 65 <= b <= 90 then
-        ((b as int - 65 + 97) as byte)
-    else
-        b
-}
+// function CharToLowerWithByte(b: byte): byte
+// {
+//     if 65 <= b <= 90 then
+//         ((b as int - 65 + 97) as byte)
+//     else
+//         b
+// }
 
 // Helper method to convert a char array to lowercase
-method ConvertToLower(text: array<char>) returns (lower: array<char>)
-    requires text.Length > 0
-    ensures fresh(lower)
-    ensures lower.Length == text.Length
-    ensures forall i :: 0 <= i < lower.Length ==> lower[i] == CharToLower(text[i])
-{
-    lower := new char[text.Length];
-    var i := 0;
-    while i < text.Length
-        invariant 0 <= i <= text.Length
-        invariant forall j :: 0 <= j < i ==> lower[j] == CharToLower(text[j])
-    {
-        lower[i] := CharToLower(text[i]);
-        i := i + 1;
-    }
-}
+// method ConvertToLower(text: array<char>) returns (lower: array<char>)
+//     requires text.Length > 0
+//     ensures fresh(lower)
+//     ensures lower.Length == text.Length
+//     ensures forall i :: 0 <= i < lower.Length ==> lower[i] == CharToLower(text[i])
+// {
+//     lower := new char[text.Length];
+//     var i := 0;
+//     while i < text.Length
+//         invariant 0 <= i <= text.Length
+//         invariant forall j :: 0 <= j < i ==> lower[j] == CharToLower(text[j])
+//     {
+//         lower[i] := CharToLower(text[i]);
+//         i := i + 1;
+//     }
+// }
 
 // Helper method to find all positions where pattern occurs in file content
 method FindPatternInFile(word: array<char>, fileContent: array<byte>) returns (positions: seq<int>)
@@ -65,17 +47,16 @@ method FindPatternInFile(word: array<char>, fileContent: array<byte>) returns (p
     var contentLen := fileContent.Length;
     var pos := 0;
     positions := [];
-    var lowerWord := ConvertToLower(word);
-    while pos + lowerWord.Length <= contentLen
+    while pos + word.Length <= contentLen
         invariant 0 <= pos <= contentLen
         invariant forall i :: 0 <= i < |positions| ==> 0 <= positions[i] < contentLen
     {
         var matches := true;
         var i := 0;
-        while i < lowerWord.Length && matches
-            invariant 0 <= i <= lowerWord.Length
+        while i < word.Length && matches
+            invariant 0 <= i <= word.Length
         {
-            if CharToLowerWithByte(fileContent[pos + i]) as char != lowerWord[i] {
+            if fileContent[pos + i] as char != word[i] {
                 matches := false;
             }
             i := i + 1;
@@ -110,12 +91,6 @@ method PrintSearchResult(positions: seq<int>)
         }
         print "\n";
     }
-}
-
-// Helper method to print a character
-method PrintChar(c: char)
-{
-    print c;
 }
 
 method {:main} Main(ghost env: HostEnvironment?)
