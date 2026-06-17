@@ -7,6 +7,41 @@
 
 include "Io.dfy"
 
+method constructLps(word: array<char>) returns (lps: array<int>)
+  requires word.Length > 0
+  ensures lps.Length == word.Length
+  ensures lps[0] == 0
+  ensures forall k :: 0 <= k < lps.Length ==> 0 <= lps[k] <= k
+{
+  lps := new int[word.Length];
+  var len := 0;
+  lps[0] := 0;
+  var i := 1;
+  
+  while i < word.Length
+    invariant 1 <= i <= word.Length
+    invariant 0 <= len < i
+    invariant lps[0] == 0
+    invariant forall k :: 1 <= k < i ==> 0 <= lps[k] <= k
+    decreases word.Length - i, len
+  {
+    if word[i] == word[len] {
+      len := len + 1;
+      lps[i] := len;
+      i := i + 1;
+    }
+    else {
+      if len != 0 {
+        len := lps[len - 1];
+      }
+      else {
+        lps[i] := 0;
+        i := i + 1;
+      }
+    }
+  }
+}
+
 method {:main} Main(ghost env: HostEnvironment?)
     requires env != null && env.Valid() && env.ok.ok()
     modifies env.ok
@@ -62,7 +97,8 @@ method {:main} Main(ghost env: HostEnvironment?)
         return;
     }
     // TODO: Grep KMP
-
+    var lps := constructLps(word);
+    
     // Close the file
     var closeOk := file.Close();
     if !closeOk {
