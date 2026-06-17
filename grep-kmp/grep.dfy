@@ -42,6 +42,73 @@ method constructLps(word: array<char>) returns (lps: array<int>)
   }
 }
 
+method search(word: array<char>, txt: array<byte>) returns (positions: seq<int>)
+    requires word.Length > 0
+    ensures forall i :: 0 <= i < |positions| ==> 0 <= positions[i] <= txt.Length - word.Length
+{
+    var lps := constructLps(word);
+
+    var n := txt.Length;
+    var m := word.Length;
+    positions := [];
+    if (txt.Length < word.Length){
+      return;
+    }
+
+    var i := 0;
+    var j := 0;
+    var pos := 0;
+
+    while i < n
+        invariant 0 <= i <= n
+        invariant 0 <= j <= m
+        invariant i - j >= 0
+        invariant forall k :: 0 <= k < |positions| ==> 0 <= positions[k] <= n - m
+        decreases n - i, j
+    {
+        if j < m && txt[i] as char == word[j] {
+            i := i + 1;
+            j := j + 1;
+
+            if j == m {
+                positions := positions + [i-j];
+                pos := pos + 1;
+                j := 0;
+            }
+        }
+        else {
+            if j != 0 {
+                j := lps[j - 1];
+            }
+            else {
+                i := i + 1;
+            }
+        }
+    }
+}
+
+// Helper function to generate output based on found positions
+method PrintSearchResult(positions: seq<int>)
+    requires forall i :: 0 <= i < |positions| ==> positions[i] >= 0
+{
+    if |positions| == 0 {
+        print "NO\n";
+    } else {
+        print "YES: ";
+        var i := 0;
+        while i < |positions|
+            invariant 0 <= i <= |positions|
+        {
+            if i > 0 {
+                print ", ";
+            }
+            print positions[i];
+            i := i + 1;
+        }
+        print "\n";
+    }
+}
+
 method {:main} Main(ghost env: HostEnvironment?)
     requires env != null && env.Valid() && env.ok.ok()
     modifies env.ok
@@ -96,8 +163,11 @@ method {:main} Main(ghost env: HostEnvironment?)
         print "Error: Failed to read file\n";
         return;
     }
-    // TODO: Grep KMP
-    var lps := constructLps(word);
+
+    var positions := search(word, buffer);
+
+    // Output result (YES: all positions or NO)
+    PrintSearchResult(positions);
     
     // Close the file
     var closeOk := file.Close();
