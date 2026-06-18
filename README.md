@@ -96,6 +96,8 @@ The `grep.dfy` utility receives a pattern and a file, reads the file and prints 
 7. Write on the destination file.
 8. Close both files.
 
+The printing logic was implemented differently in each grep version. In the naive implementation, we decided to print matching lines directly during the search process. In the KMP implementation, however, we first collect all the starting positions where the pattern appears and then generate the output in a separate function. This second function is responsible only for printing and does not perform any additional pattern matching. This approach may introduce a small amount of extra overhead compared to printing immediately, since it requires storing match positions and processing them afterward. The goal was mainly to experiment with a different implementation strategy and compare both approaches. In the end, both implementations work correctly and produce the same results.
+
 ### 2.1 Grep Naive (`grep-naive/grep.dfy`)
 
 This grep implementation uses the **naive string-matching algorithm**, which runs in **O(n * m)** time in the worst case, where n is the size of the file and m is the size of the pattern. The algorithm scans the file character by character and, at each position, attempts to match the entire pattern against the following characters in the text.
