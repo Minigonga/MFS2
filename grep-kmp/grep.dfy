@@ -195,7 +195,7 @@ method {:main} Main(ghost env: HostEnvironment?)
     // Check if file exists
     var fileExists := FileStream.FileExists(fileName, env);
     if !fileExists {
-        print "The file doesn't exist\n";
+        print "Error: The file doesn't exist\n";
         return;
     }
     

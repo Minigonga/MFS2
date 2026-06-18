@@ -1,6 +1,6 @@
 /*  
  * Verified Grep Utility - Naive String Matching Algorithm
- * Finds the first occurrence of a word/pattern in a file
+ * Finds all occurrences of a word/pattern in a file
  */
 
 include "Io.dfy"
@@ -10,6 +10,8 @@ method FindPatternInFile(word: array<char>, fileContent: array<byte>)
     requires word.Length > 0
 {
     var contentLen := fileContent.Length;
+
+    // Impossible to find a match if the pattern is longer than the text.
     if (contentLen < word.Length){
         return;
     }
@@ -28,9 +30,11 @@ method FindPatternInFile(word: array<char>, fileContent: array<byte>)
     {
         // End of line: flush the current line and reset state
         if fileContent[pos] == 10 {
+            // Print the line because the pattern exists on it
             if wordOnLine {
                 print line, "\n";
             }
+            // Reset the line
             line := [];
             wordOnLine := false;
             pos := pos + 1;
@@ -52,20 +56,21 @@ method FindPatternInFile(word: array<char>, fileContent: array<byte>)
         } else{
             matches := false;
         }
-
+        // If there is a match adds the word to the line with the red colour
+        // and passes the full word to avoid overlaping of patterns
         if matches {
             position := pos;
             wordOnLine := true;
-            line := line + esc + red;
+            line := line + esc + red; // Used to put the output as red
                 while pos < position + word.Length
                 invariant 0 <= pos <= word.Length + position
                 {   
                     line := line + [fileContent[pos] as char];
                     pos := pos + 1;
                 }
-            line := line + esc + reset;
+            line := line + esc + reset; // Used to reset the colour of the output
         } else{
-            line := line + [fileContent[pos] as char];
+            line := line + [fileContent[pos] as char]; // Simply add the letter with normal colour to the line because it wasn't part of any match
             pos := pos + 1;
         }
 
@@ -102,7 +107,7 @@ method {:main} Main(ghost env: HostEnvironment?)
     // Check if file exists
     var fileExists := FileStream.FileExists(fileName, env);
     if !fileExists {
-        print "The file doesn't exist\n";
+        print "Error: The file doesn't exist\n";
         return;
     }
     
@@ -112,6 +117,7 @@ method {:main} Main(ghost env: HostEnvironment?)
         print "Error: Failed to open file\n";
         return;
     }
+
     // Get file length
     var lenOk, fileLen := FileStream.FileLength(fileName, env);
     if !lenOk {

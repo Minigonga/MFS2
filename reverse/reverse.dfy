@@ -150,42 +150,57 @@ method {:main} Main(ghost env: HostEnvironment?)
   modifies env.files
 {
     var numArgs := HostConstants.NumCommandLineArgs(env);
+
+    // Check correct number of arguments
     if numArgs != 3 {
       print "Usage: reverse <source> <destination>\n";
       return;
     }
+
+    // Get command-line arguments
     var sourceNameArray := HostConstants.GetCommandLineArg(1, env);
     var destNameArray := HostConstants.GetCommandLineArg(2, env);
-    var destExists := FileStream.FileExists(destNameArray, env);
-    if destExists {
-      print "Destination file already exists\n";
-      return;
-    }
+
+    // Check if source file exists, if it exists it continues
     var sourceExists := FileStream.FileExists(sourceNameArray, env);
     if !sourceExists {
-      print "Source file doesn't exist\n";
-      return;
-    }
-    var openSourceOk, sourceFile := FileStream.Open(sourceNameArray, env);
-    if !openSourceOk {
-      print "Failed to open source file\n";
-      return;
-    }
-    var lenOk, sourceLen := FileStream.FileLength(sourceNameArray, env);
-    if !lenOk {
-      print "Failed to get source file length\n";
-      return;
-    }
-    var openDestOk, destFile := FileStream.Open(destNameArray, env);
-    if !openDestOk {
-      print "Failed to open destination file\n";
+      print "Error: Source file doesn't exist\n";
       return;
     }
 
+    // Check if destination file exists, if it does it does not continue
+    var destExists := FileStream.FileExists(destNameArray, env);
+    if destExists {
+      print "Error: Destination file already exists\n";
+      return;
+    }
+
+    // Open the source file
+    var openSourceOk, sourceFile := FileStream.Open(sourceNameArray, env);
+    if !openSourceOk {
+      print "Error: Failed to open source file\n";
+      return;
+    }
+
+    // Get source file length
+    var lenOk, sourceLen := FileStream.FileLength(sourceNameArray, env);
+    if !lenOk {
+      print "Error: Failed to get source file length\n";
+      return;
+    }
+
+    // Open the destination file
+    var openDestOk, destFile := FileStream.Open(destNameArray, env);
+    if !openDestOk {
+      print "Error: Failed to open destination file\n";
+      return;
+    }
+
+    // Read entire file into buffer
     var buffer := new byte[sourceLen];
     var readOk := sourceFile.Read(0, buffer, 0, sourceLen);
     if !readOk {
-      print "Failed to read source file\n";
+      print "Error: Failed to read source file\n";
       return;
     }
 
@@ -198,22 +213,25 @@ method {:main} Main(ghost env: HostEnvironment?)
     // Convert back to bytes
     buffer := LinesToBytes(reversedLines);
 
+    // Write the destination file
     var writeOk := destFile.Write(0, buffer, 0, buffer.Length as int32);
 
     if !writeOk {
-      print "Failed to write to destination file\n";
+      print "Error: Failed to write to destination file\n";
       return;
     }
 
+    // Close the source file
     var closeSourceOk := sourceFile.Close();
     if !closeSourceOk {
-      print "Failed to close source file\n";
+      print "Error: Failed to close source file\n";
       return;
     }
 
+    // Close the destination file
     var closeDestOk := destFile.Close();
     if !closeDestOk {
-      print "Failed to close destination file\n";
+      print "Error: Failed to close destination file\n";
       return;
     }
 
