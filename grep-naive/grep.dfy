@@ -1,6 +1,6 @@
 /*  
  * Verified Grep Utility - Naive String Matching Algorithm
- * Finds the first occurrence of a word/pattern in a file
+ * Finds all occurrences of a word/pattern in a file
  */
 
 include "Io.dfy"

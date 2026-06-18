@@ -1,8 +1,6 @@
 /*  
- * This is the skeleton for the grep utility.
- * In this folder you should include a grep utility based
- * on the Knuth-Morris-Pratt algorithm.
- *
+ * Verified Grep Utility - Knuth-Morris-Pratt Algorithm
+ * Finds all occurrences of a word/pattern in a file
  */
 
 include "Io.dfy"
