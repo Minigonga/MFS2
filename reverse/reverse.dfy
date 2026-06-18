@@ -7,13 +7,13 @@ include "Io.dfy"
 
 method SplitByNewline(buffer: seq<byte>) returns (lines: seq<seq<byte>>)
 {
-  var result: seq<seq<byte>> := [];
+  lines := [];
   var currentLine: seq<byte> := [];
   var i := 0;
   while i < |buffer|
   {
     if buffer[i] == 10 {  // 10 is ASCII for '\n'
-      result := result + [currentLine];
+      lines := lines + [currentLine];
       currentLine := [];
     } else {
       currentLine := currentLine + [buffer[i]];
@@ -21,21 +21,19 @@ method SplitByNewline(buffer: seq<byte>) returns (lines: seq<seq<byte>>)
     i := i + 1;
   }
   if |currentLine| > 0 {
-    result := result + [currentLine];
+    lines := lines + [currentLine];
   }
-  return result;
 }
 
 method ReverseLines(lines: seq<seq<byte>>) returns (reversed: seq<seq<byte>>)
 {
-  var result: seq<seq<byte>> := [];
+  reversed := [];
   var i := |lines| - 1;
   while i >= 0
   {
-    result := result + [lines[i]];
+    reversed := reversed + [lines[i]];
     i := i - 1;
   }
-  return result;
 }
 
 method LinesToBytes(lines: seq<seq<byte>>) returns (buffer: array<byte>)
