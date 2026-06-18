@@ -29,18 +29,36 @@ make compile
 ### Grep Naive
 
 Create a file in the grep-naive directory with text to search through.
+
+#### Without Makefile
 ```bash
 cd grep-naive
 dafny grep.dfy IoNative.cs
 ./grep <word> <file>
 ```
 
+#### With Makefile
+```bash
+cd grep-naive
+make compile
+./grep <word> <file>
+```
+
 ### Grep KMP
 
 Create a file in the grep-kmp directory with text to search through.
+
+#### Without Makefile
 ```bash
 cd grep-kmp
 dafny grep.dfy IoNative.cs
+./grep <word> <file>
+```
+
+#### With Makefile
+```bash
+cd grep-kmp
+make compile
 ./grep <word> <file>
 ```
 
