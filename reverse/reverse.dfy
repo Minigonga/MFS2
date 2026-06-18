@@ -33,7 +33,7 @@ lemma LinesSizeAppend(lines: seq<seq<byte>>, line: seq<byte>)
   }
 }
 
-// outputSize grows when we append a new line (accounting for separator).
+// Appending a new line increases the outputSize by |line| + 1 (accounting for '\n').
 lemma OutputSizeAppend(lines: seq<seq<byte>>, line: seq<byte>)
   requires |lines| >= 0
   ensures outputSize(lines + [line]) == outputSize(lines) + |line| + (if |lines| > 0 then 1 else 0)
@@ -48,7 +48,8 @@ lemma OutputSizeAppend(lines: seq<seq<byte>>, line: seq<byte>)
   }
 }
 
-// Invariant links the processed bytes to outputSize, proving it stays within bounds.
+// Splits the raw byte buffer into individual lines using the newline character ('\n') as a separator.
+// The loop invariants formally prove the processed bytes mathematically map to the outputSize bounds.
 method SplitByNewline(buffer: seq<byte>) returns (lines: seq<seq<byte>>)
   requires |buffer| < 0x80000000
   ensures outputSize(lines) < 0x80000000
@@ -66,9 +67,12 @@ method SplitByNewline(buffer: seq<byte>) returns (lines: seq<seq<byte>>)
     if buffer[i] == 10 {  // '\n'
       OutputSizeAppend(lines, currentLine);
       LinesSizeAppend(lines, currentLine);
+      // Append the completed line to our list
       lines := lines + [currentLine];
+      // Reset the current line buffer for the next line
       currentLine := [];
     } else {
+      // Append the character to the current in-progress line
       currentLine := currentLine + [buffer[i]];
     }
     i := i + 1;
@@ -82,6 +86,7 @@ method SplitByNewline(buffer: seq<byte>) returns (lines: seq<seq<byte>>)
   }
 }
 
+// Reverses the sequence of lines, formally proving that the overall sizes (linesSize and outputSize) are preserved.
 method ReverseLines(lines: seq<seq<byte>>) returns (reversed: seq<seq<byte>>)
   requires outputSize(lines) < 0x80000000
   ensures |reversed| == |lines|
@@ -97,7 +102,9 @@ method ReverseLines(lines: seq<seq<byte>>) returns (reversed: seq<seq<byte>>)
     invariant linesSize(reversed) == linesSize(lines[i+1..])
   {
     LinesSizeAppend(reversed, lines[i]);
+    // Append the line from the end of the original sequence to reverse the order
     reversed := reversed + [lines[i]];
+    // Move backwards through the original sequence
     i := i - 1;
   }
   // After loop: linesSize(reversed) == linesSize(lines[0..]) == linesSize(lines)
@@ -123,10 +130,15 @@ method LinesToBytes(lines: seq<seq<byte>>) returns (buffer: array<byte>)
   {
     LinesSizeAppend(lines[..i], lines[i]);
     assert lines[..i] + [lines[i]] == lines[..i+1];
+    
+    // Append the actual line content to our flat sequence
     result := result + lines[i];
+    
+    // If this is not the final line, append a newline separator
     if i < |lines| - 1 {
-      result := result + [10];  // 10 is \n
+      result := result + [10];  // 10 is '\n'
     }
+    // Move to the next line
     i := i + 1;
   }
 
@@ -139,6 +151,7 @@ method LinesToBytes(lines: seq<seq<byte>>) returns (buffer: array<byte>)
     invariant 0 <= j <= |result|
     invariant buffer[..j] == result[..j]
   {
+    // Copy the byte from our sequence into the final fixed-size array
     buffer[j] := result[j];
     j := j + 1;
   }
