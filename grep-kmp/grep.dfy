@@ -72,7 +72,6 @@ method search(word: array<char>, txt: array<byte>) returns (positions: seq<int>)
 
             if j == m {
                 positions := positions + [i-j];
-                pos := pos + 1;
                 j := 0;
             }
         }
