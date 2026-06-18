@@ -1,0 +1,20 @@
+# Dafny build artifacts
+*.dll
+*.pdb
+*.runtimeconfig.json
+*.deps.json
+*.csproj
+*.cs
+*-cs.dtr
+obj/
+bin/
+
+# Generated executables
+*.exe
+reverse/reverse
+grep-naive/grep
+grep-kmp/grep
+
+# Test files and artifacts
+*SourceFile*
+*DestFile*
