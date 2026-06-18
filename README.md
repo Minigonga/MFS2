@@ -72,7 +72,7 @@ The core challenge of this utility was implementing the low-level byte manipulat
 
 To mathematically prove the absence of out-of-bounds memory accesses and ensure loop termination, we developed a robust proof chain:
 
-1. **Mathematical Models (Ghost Functions):** We created two ghost functions: 
+1. **Mathematical Models:** We created two functions: 
    - `linesSize(lines)`: Recursively computes the sum of all raw content bytes inside a `seq<seq<byte>>`.
    - `outputSize(lines)`: Computes the total bytes required to serialize the lines, including the `\n` separators (`linesSize(lines) + max(|lines|-1, 0)`).
 2. **Inductive Proof Lemmas:** Dafny cannot automatically deduce how the total size of a 2D sequence (`seq<seq<byte>>`) changes when a new sequence is appended to it. To solve this, we explicitly proved two mathematical lemmas:
@@ -84,7 +84,7 @@ To mathematically prove the absence of out-of-bounds memory accesses and ensure 
 
 ### 2. Grep Naive & KMP Utilities (`grep-naive/grep.dfy` and `grep-kmp/grep.dfy`)
 
-The `grep.dfy` utility receives a pattern and a file, reads the file and prints all the lines from the file that have the word in it, the word is also highlighted with a different colour (red). In cases like the pattern is atat and there is a section with atatat the text will appear with only the first atat with the red colour <span style="color:red;">atat</span>at, like this because the method searches for a word and doesn't use any part of that word to match another word. In a case where the section was for example atatatat the output would bet <span style="color:red;">atatatat</span> because the second atat doesn't use any part of the first match. For the pattern it is not needed to have "" but if the pattern has spaces it is.
+The `grep.dfy` utility receives a pattern and a file, reads the file and prints all the lines from the file that have the word in it, the word is also highlighted with a different colour (red). In cases where the pattern is "atat" and there is a section with "atatat" the text will appear with only the first "atat" with the red colour "<span style="color:red;">atat</span>at", like this because the method searches for a word and doesn't use any part of that word to match another word. In a case where the section was for example "atatatat" the output would be "<span style="color:red;">atatatat</span>" because the second "atat" doesn't use any part of the first match. For the pattern it is not needed to have "" but if the pattern has spaces it is.
 
 **Execution Flow (Main):**
 1. First check the number of arguments, it should be 3, the ./reverse, the name of the source file and the name of the destination file.
