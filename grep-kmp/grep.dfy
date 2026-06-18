@@ -137,16 +137,6 @@ method {:main} Main(ghost env: HostEnvironment?)
         return;
     }
     
-    // Axiomatically assume the file exists in the state
-    assume {:axiom} fileName[..] in env.files.state();
-    
-    // Get file length
-    var lenOk, fileLen := FileStream.FileLength(fileName, env);
-    if !lenOk {
-        print "Error: Failed to get file length\n";
-        return;
-    }
-    
     // Open the file
     var openOk, file := FileStream.Open(fileName, env);
     if !openOk {
@@ -154,6 +144,13 @@ method {:main} Main(ghost env: HostEnvironment?)
         return;
     }
     
+    // Get file length
+    var lenOk, fileLen := FileStream.FileLength(fileName, env);
+    if !lenOk {
+        print "Error: Failed to get file length\n";
+        return;
+    }
+
     // Read entire file into buffer
     var buffer := new byte[fileLen];
     var readOk := file.Read(0, buffer, 0, fileLen);

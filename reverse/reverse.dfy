@@ -76,15 +76,19 @@ method {:main} Main(ghost env: HostEnvironment?)
       print "Destination file already exists\n";
       return;
     }
-    assume {:axiom} sourceNameArray[..] in env.files.state();
-    var lenOk, sourceLen := FileStream.FileLength(sourceNameArray, env);
-    if !lenOk {
-      print "Failed to get source file length\n";
+    var sourceExists := FileStream.FileExists(sourceNameArray, env);
+    if sourceExists {
+      print "Source file doesn't exist\n";
       return;
     }
     var openSourceOk, sourceFile := FileStream.Open(sourceNameArray, env);
     if !openSourceOk {
       print "Failed to open source file\n";
+      return;
+    }
+    var lenOk, sourceLen := FileStream.FileLength(sourceNameArray, env);
+    if !lenOk {
+      print "Failed to get source file length\n";
       return;
     }
     var openDestOk, destFile := FileStream.Open(destNameArray, env);
