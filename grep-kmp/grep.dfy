@@ -86,25 +86,63 @@ method search(word: array<char>, txt: array<byte>) returns (positions: seq<int>)
     }
 }
 
-// Helper function to generate output based on found positions
-method PrintSearchResult(positions: seq<int>)
-    requires forall i :: 0 <= i < |positions| ==> positions[i] >= 0
+// Prints each file line that contains a KMP match, highlighting matched words in red.
+// positions must be sorted ascending (guaranteed by the KMP search order) and each
+// position must satisfy positions[k] + word.Length <= fileContent.Length.
+method PrintSearchResult(word: array<char>, fileContent: array<byte>, positions: seq<int>)
+    requires word.Length > 0
+    requires forall k :: 0 <= k < |positions| ==> 0 <= positions[k] <= fileContent.Length - word.Length
 {
-    if |positions| == 0 {
-        print "NO\n";
-    } else {
-        print "YES: ";
-        var i := 0;
-        while i < |positions|
-            invariant 0 <= i <= |positions|
-        {
-            if i > 0 {
-                print ", ";
+    if |positions| == 0 { return; }
+
+    var esc := [27 as char, '['];
+    var red := ['3','1','m'];
+    var reset := ['0','m'];
+    var contentLen := fileContent.Length;
+    var pos := 0;
+    var matchIdx := 0;
+    var line: seq<char> := [];
+    var wordOnLine := false;
+
+    while pos < contentLen
+        invariant 0 <= pos <= contentLen
+        invariant 0 <= matchIdx <= |positions|
+    {
+        // End of line: flush the current line and reset state
+        if fileContent[pos] == 10 {
+            if wordOnLine {
+                print line, "\n";
             }
-            print positions[i];
-            i := i + 1;
+            line := [];
+            wordOnLine := false;
+            pos := pos + 1;
+            continue;
         }
-        print "\n";
+
+        // If this byte is the start of the next KMP match, highlight the word
+        if matchIdx < |positions| && pos == positions[matchIdx] {
+            var startPos := pos;
+            assert startPos + word.Length <= fileContent.Length;
+            wordOnLine := true;
+            line := line + esc + red;
+            while pos < startPos + word.Length
+                invariant startPos <= pos <= startPos + word.Length
+                invariant pos <= fileContent.Length
+            {
+                line := line + [fileContent[pos] as char];
+                pos := pos + 1;
+            }
+            line := line + esc + reset;
+            matchIdx := matchIdx + 1;
+        } else {
+            line := line + [fileContent[pos] as char];
+            pos := pos + 1;
+        }
+    }
+
+    // Handle last line if file doesn't end with '\n'
+    if |line| > 0 && wordOnLine {
+        print line, "\n";
     }
 }
 
@@ -160,10 +198,9 @@ method {:main} Main(ghost env: HostEnvironment?)
         return;
     }
 
+    // Use KMP to find all match positions, then print matching lines with ANSI highlighting
     var positions := search(word, buffer);
-
-    // Output result (YES: all positions or NO)
-    PrintSearchResult(positions);
+    PrintSearchResult(word, buffer, positions);
     
     // Close the file
     var closeOk := file.Close();
