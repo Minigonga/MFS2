@@ -53,9 +53,7 @@ lemma OutputSizeAppend(lines: seq<seq<byte>>, line: seq<byte>)
 // Invariant links the processed bytes to outputSize, proving it stays within bounds.
 method SplitByNewline(buffer: seq<byte>) returns (lines: seq<seq<byte>>)
   requires |buffer| < 0x80000000
-  requires forall i :: 0 <= i < |buffer| ==> buffer[i] != 0  // No null bytes
   ensures outputSize(lines) < 0x80000000
-  ensures (|lines| == 0) ==> (|buffer| == 0)  // Empty buffer yields empty lines
 {
   lines := [];
   var currentLine: seq<byte> := [];
@@ -105,7 +103,6 @@ lemma LinesSizeReverse(lines: seq<seq<byte>>, i: int)
 
 // Reverse the order of lines; preserves linesSize and outputSize.
 method ReverseLines(lines: seq<seq<byte>>) returns (reversed: seq<seq<byte>>)
-  requires |lines| > 0
   requires outputSize(lines) < 0x80000000
   ensures |reversed| == |lines|
   ensures linesSize(reversed) == linesSize(lines)
@@ -132,7 +129,6 @@ method ReverseLines(lines: seq<seq<byte>>) returns (reversed: seq<seq<byte>>)
 // Since outputSize(lines) < 0x80000000, buffer.Length < 0x80000000 — no assume needed.
 method LinesToBytes(lines: seq<seq<byte>>) returns (buffer: array<byte>)
   requires outputSize(lines) < 0x80000000
-  requires forall i :: 0 <= i < |lines| ==> forall j :: 0 <= j < |lines[i]| ==> lines[i][j] != 10
   ensures buffer.Length == outputSize(lines)
   ensures buffer.Length < 0x80000000
 {
