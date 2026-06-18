@@ -11,9 +11,18 @@
 ### Reverse
 
 Create a "SourceFile" in the reverse directory with the text to reverse the lines.
+
+#### Without Makefile
 ```bash
 cd reverse
 dafny reverse.dfy IoNative.cs
+./reverse SourceFile DestFile
+```
+
+#### With Makefile
+```bash
+cd reverse
+make compile
 ./reverse SourceFile DestFile
 ```
 
