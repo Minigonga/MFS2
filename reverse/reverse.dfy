@@ -19,10 +19,6 @@
 
 include "Io.dfy"
 
-//////////////////////////////////////////////////////////////////////////////
-// Size helpers
-//////////////////////////////////////////////////////////////////////////////
-
 // Total content bytes across all lines (no newline separators).
 function linesSize(lines: seq<seq<byte>>): nat
 {
@@ -67,10 +63,6 @@ lemma OutputSizeAppend(lines: seq<seq<byte>>, line: seq<byte>)
     //                            = outputSize(lines) + |line| + 1
   }
 }
-
-//////////////////////////////////////////////////////////////////////////////
-// SplitByNewline
-//////////////////////////////////////////////////////////////////////////////
 
 // Split buffer on '\n' (ASCII 10).
 //
@@ -126,10 +118,6 @@ method SplitByNewline(buffer: seq<byte>) returns (lines: seq<seq<byte>>)
   //   < 0x80000000
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// ReverseLines
-//////////////////////////////////////////////////////////////////////////////
-
 lemma LinesSizeReverse(lines: seq<seq<byte>>, i: int)
   requires 0 <= i <= |lines|
   ensures linesSize(lines) == linesSize(lines[..i]) + linesSize(lines[i..])
@@ -167,10 +155,6 @@ method ReverseLines(lines: seq<seq<byte>>) returns (reversed: seq<seq<byte>>)
   assert lines[0..] == lines;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// LinesToBytes
-//////////////////////////////////////////////////////////////////////////////
-
 // Convert lines back to a flat buffer with '\n' separators.
 // Output length == outputSize(lines), proven by the loop invariant on |result|.
 // Since outputSize(lines) < 0x80000000, buffer.Length < 0x80000000 — no assume needed.
@@ -205,7 +189,7 @@ method LinesToBytes(lines: seq<seq<byte>>) returns (buffer: array<byte>)
     assert lines[..i] + [lines[i]] == lines[..i+1];
     result := result + lines[i];
     if i < |lines| - 1 {
-      result := result + [10];  // '\n' separator
+      result := result + [10];  // 10 is \n
     }
     i := i + 1;
   }
@@ -226,102 +210,78 @@ method LinesToBytes(lines: seq<seq<byte>>) returns (buffer: array<byte>)
   }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// Main
-//////////////////////////////////////////////////////////////////////////////
-
 method {:main} Main(ghost env: HostEnvironment?)
   requires env != null && env.Valid() && env.ok.ok()
   modifies env.ok
   modifies env.files
 {
-  var numArgs := HostConstants.NumCommandLineArgs(env);
-  if numArgs != 3 {
-    print "Usage: reverse <source> <destination>\n";
-    return;
-  }
+    var numArgs := HostConstants.NumCommandLineArgs(env);
+    if numArgs != 3 {
+      print "Usage: reverse <source> <destination>\n";
+      return;
+    }
+    var sourceNameArray := HostConstants.GetCommandLineArg(1, env);
+    var destNameArray := HostConstants.GetCommandLineArg(2, env);
+    var destExists := FileStream.FileExists(destNameArray, env);
+    if destExists {
+      print "Destination file already exists\n";
+      return;
+    }
+    var sourceExists := FileStream.FileExists(sourceNameArray, env);
+    if !sourceExists {
+      print "Source file doesn't exist\n";
+      return;
+    }
+    var openSourceOk, sourceFile := FileStream.Open(sourceNameArray, env);
+    if !openSourceOk {
+      print "Failed to open source file\n";
+      return;
+    }
+    var lenOk, sourceLen := FileStream.FileLength(sourceNameArray, env);
+    if !lenOk {
+      print "Failed to get source file length\n";
+      return;
+    }
+    var openDestOk, destFile := FileStream.Open(destNameArray, env);
+    if !openDestOk {
+      print "Failed to open destination file\n";
+      return;
+    }
 
-  var sourceNameArray := HostConstants.GetCommandLineArg(1, env);
-  var destNameArray   := HostConstants.GetCommandLineArg(2, env);
+    var buffer := new byte[sourceLen];
+    var readOk := sourceFile.Read(0, buffer, 0, sourceLen);
+    if !readOk {
+      print "Failed to read source file\n";
+      return;
+    }
 
-  // Check destination does not already exist
-  var destExists := FileStream.FileExists(destNameArray, env);
-  if destExists {
-    print "Destination file already exists\n";
-    return;
-  }
+    // Parse into lines
+    var lines := SplitByNewline(buffer[..]);
 
-  // Check source exists
-  var sourceExists := FileStream.FileExists(sourceNameArray, env);
-  if !sourceExists {
-    print "Source file doesn't exist\n";
-    return;
-  }
+    // Reverse lines
+    var reversedLines := ReverseLines(lines);
 
-  // We know source is in the file system now (FileExists returned true)
-  assume {:axiom} sourceNameArray[..] in env.files.state();
+    // Convert back to bytes
+    buffer := LinesToBytes(reversedLines);
 
-  // Get file length — ensures sourceLen as int < 0x80000000 (int32 type bound)
-  var lenOk, sourceLen := FileStream.FileLength(sourceNameArray, env);
-  if !lenOk {
-    print "Failed to get source file length\n";
-    return;
-  }
+    var writeOk := destFile.Write(0, buffer, 0, buffer.Length as int32);
 
-  // Open source
-  var openSourceOk, sourceFile := FileStream.Open(sourceNameArray, env);
-  if !openSourceOk {
-    print "Failed to open source file\n";
-    return;
-  }
+    if !writeOk {
+      print "Failed to write to destination file\n";
+      return;
+    }
 
-  // Open destination (creates it empty)
-  var openDestOk, destFile := FileStream.Open(destNameArray, env);
-  if !openDestOk {
-    print "Failed to open destination file\n";
-    return;
-  }
+    var closeSourceOk := sourceFile.Close();
+    if !closeSourceOk {
+      print "Failed to close source file\n";
+      return;
+    }
 
-  // Read entire source into buffer
-  var readBuf := new byte[sourceLen];
-  var readOk := sourceFile.Read(0, readBuf, 0, sourceLen);
-  if !readOk {
-    print "Failed to read source file\n";
-    return;
-  }
+    var closeDestOk := destFile.Close();
+    if !closeDestOk {
+      print "Failed to close destination file\n";
+      return;
+    }
 
-  // sourceLen : int32  =>  sourceLen as int < 0x80000000
-  // readBuf[..] has length sourceLen as int < 0x80000000
-  assert sourceLen as int < 0x80000000;
-  assert |readBuf[..]| == sourceLen as int;
-
-  // Split into lines; ensures outputSize(lines) < 0x80000000
-  var lines := SplitByNewline(readBuf[..]);
-
-  // Reverse order; ensures outputSize(reversedLines) < 0x80000000
-  var reversedLines := ReverseLines(lines);
-
-  // Convert back to bytes; ensures buffer.Length < 0x80000000  (no assume!)
-  var buffer := LinesToBytes(reversedLines);
-
-  // buffer.Length < 0x80000000 is proven — cast to int32 is safe
-  var writeOk := destFile.Write(0, buffer, 0, buffer.Length as int32);
-  if !writeOk {
-    print "Failed to write to destination file\n";
-    return;
-  }
-
-  var closeSourceOk := sourceFile.Close();
-  if !closeSourceOk {
-    print "Failed to close source file\n";
-    return;
-  }
-
-  var closeDestOk := destFile.Close();
-  if !closeDestOk {
-    print "Failed to close destination file\n";
-    return;
-  }
-
-  print "File reversed and copied successfully\n";
+    print "File reversed and copied successfully\n";
 }
