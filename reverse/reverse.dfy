@@ -77,7 +77,7 @@ method {:main} Main(ghost env: HostEnvironment?)
       return;
     }
     var sourceExists := FileStream.FileExists(sourceNameArray, env);
-    if sourceExists {
+    if !sourceExists {
       print "Source file doesn't exist\n";
       return;
     }
