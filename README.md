@@ -67,17 +67,20 @@ make compile
 This project has been fully implemented, successfully fulfilling all functional requirements, verification obligations, and bonus challenges.
 
 ### 1. Reverse Utility (`reverse/reverse.dfy`)
-The `reverse.dfy` utility reads a source file and writes a new destination file with the lines strictly reversed. 
-The core challenge of this utility was eliminating the unverified `assume {:axiom} buffer.Length < 0x80000000` prior to writing to the `FileStream`. The `FileStream.Write` interface inherently requires an `int32` size, meaning we had to mathematically prove the buffer size would not exceed this boundary.
+The `reverse.dfy` utility was built entirely from scratch to read a source file, parse its contents, reverse the order of the lines, and write the result to a new destination file. The core challenge of this utility was implementing the low-level byte manipulation and file I/O operations while satisfying Dafny's strict mathematical verifier.
 
-**Design & Proof Chain:**
-To achieve memory safety verification without `assume` statements, we designed a robust mathematical chain mapping the abstract sequences of lines back to the concrete buffer bytes:
-1. **Mathematical Models:** We created two functions:
-   - `linesSize(lines)`: Computes the sum of all raw content bytes across the array of lines.
-   - `outputSize(lines)`: Computes the total exact bytes required for the final buffer, accounting for the `\n` separators (`linesSize(lines) + max(|lines|-1, 0)`).
-2. **Bounds Tracking:** We defined invariants in `SplitByNewline` guaranteeing that `outputSize(lines) <= |buffer|`. Since the initial `buffer.Length` is derived directly from `FileLength` (which yields an `int32` and thus `< 0x80000000`), Dafny proves `outputSize` must also be `< 0x80000000`.
-3. **Reversal Preservation:** We implemented recursive lemmas demonstrating that `ReverseLines` perfectly preserves the `outputSize` property.
-4. **Final Assembly:** The `LinesToBytes` loop invariants prove that the resulting flattened `byte` array has exactly `outputSize` length. Because `outputSize < 0x80000000`, the final `buffer.Length as int32` cast is completely verified and mathematically safe.
+**Implementation Details:**
+- **File I/O Management:** The utility utilizes the `HostEnvironment` and `FileStream` APIs to safely check file existence, retrieve file lengths, and handle the reading/writing of byte buffers, ensuring all system interactions are correctly tracked in Dafny's state (`env.ok`, `env.files`).
+- **Parsing and Splitting (`SplitByNewline`):** We manually iterate through the file's raw byte array, isolating sequences of bytes delimited by the newline character (`\n` / ASCII 10) into a sequence of sequences (`seq<seq<byte>>`).
+- **Reversal (`ReverseLines`):** The parsed lines are iterated backwards and appended to a new sequence, efficiently reversing their order while maintaining the contents of each individual line.
+- **Serialization (`LinesToBytes`):** The reversed sequence of lines is flattened back into a single 1D `array<byte>`, with the `\n` separator precisely re-inserted between lines.
+
+**Formal Verification & Memory Safety:**
+To mathematically prove the absence of out-of-bounds memory accesses and ensure loop termination, we developed a robust proof chain:
+1. **Mathematical Models:** We created two ghost functions: `linesSize(lines)` (total content bytes) and `outputSize(lines)` (total bytes including `\n` separators). 
+2. **Bounds Tracking:** We defined complex loop invariants in `SplitByNewline` to prove that `outputSize(lines) <= |buffer|`. Since the initial `buffer.Length` is derived directly from `FileLength` (which yields an `int32` and thus `< 0x80000000`), Dafny proves `outputSize` must also strictly be `< 0x80000000`.
+3. **Reversal Preservation:** Recursive lemmas were implemented to demonstrate that `ReverseLines` perfectly preserves the `outputSize` property.
+4. **Final Assembly:** The `LinesToBytes` loop invariants prove that the resulting flattened byte array has exactly `outputSize` length. This guaranteed that the final `buffer.Length as int32` cast is mathematically safe, allowing the code to be 100% verified without relying on unsafe `assume {:axiom}` statements.
 
 ### 2. Grep Naive & KMP Utilities (`grep-naive/grep.dfy` and `grep-kmp/grep.dfy`)
 Both naive and KMP string-matching utilities were implemented to search a source file for a given word.
