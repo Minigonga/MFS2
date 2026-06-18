@@ -62,13 +62,20 @@ make compile
 ./grep <word> <file>
 ```
 
-## Accomplished Work
-
-This project has been fully implemented, successfully fulfilling all functional requirements, verification obligations, and bonus challenges.
-
 ### 1. Reverse Utility (`reverse/reverse.dfy`)
-The `reverse.dfy` utility reads a source file and writes a new destination file with the lines strictly reversed. 
-The core challenge of this utility was eliminating the unverified `assume {:axiom} buffer.Length < 0x80000000` prior to writing to the `FileStream`. The `FileStream.Write` interface inherently requires an `int32` size, meaning we had to mathematically prove the buffer size would not exceed this boundary.
+The `reverse.dfy` utility reads a source file and writes in a new destination file (that can't exist before running the reverse) with the lines strictly reversed without removing empty lines either in the begining, in the middle or in the end of the file.
+
+To reverse the lines we created three methods, `SplitByNewline`, `ReverseLines` and `LinesToBytes`. The first creates a list with every line of the file, the second reverses the lines and in the third all the lines are concatenated again in the buffer to be called on the `Write` that is done after the three methods. The main part that we had to ensure on the three methods was that the size of the buffer was smaller than 0x80000000 that was the size of int32. If we didn't had any type of ensures on the methods we would need to assume that the buffer was smaller then 0x80000000 with `assume {:axiom} buffer.Length < 0x80000000`.
+
+**Main**
+1. First check the number of arguments, it should be 3, the ./reverse, the name of the source file and the name of the destination file.
+2. Check if the destination file already exists, if it exists it stops because it shouldn't exist.
+3. Check if the source file exists, it only continues if it does.
+4. Open both files and get the length of the source file.
+5. Read the source file.
+6. Reverse the lines.
+7. Write on the destination file.
+8. Close both files.
 
 **Design & Proof Chain:**
 To achieve memory safety verification without `assume` statements, we designed a robust mathematical chain mapping the abstract sequences of lines back to the concrete buffer bytes:
@@ -78,6 +85,33 @@ To achieve memory safety verification without `assume` statements, we designed a
 2. **Bounds Tracking:** We defined invariants in `SplitByNewline` guaranteeing that `outputSize(lines) <= |buffer|`. Since the initial `buffer.Length` is derived directly from `FileLength` (which yields an `int32` and thus `< 0x80000000`), Dafny proves `outputSize` must also be `< 0x80000000`.
 3. **Reversal Preservation:** We implemented recursive lemmas demonstrating that `ReverseLines` perfectly preserves the `outputSize` property.
 4. **Final Assembly:** The `LinesToBytes` loop invariants prove that the resulting flattened `byte` array has exactly `outputSize` length. Because `outputSize < 0x80000000`, the final `buffer.Length as int32` cast is completely verified and mathematically safe.
+
+### 2. Grep Naive & KMP Utilities (`grep-naive/grep.dfy` and `grep-kmp/grep.dfy`)
+
+The `grep.dfy` utility receives a pattern and a file, reads the file and prints all the lines from the file that have the word in it, the word is also highlighted with a different colour (red). In cases like the pattern is atat and there is a section with atatat the text will appear with only the first atat with the red colour <span style="color:red;">atat</span>at, like this because the method searches for a word and doesn't use any part of that word to match another word. In a case where the section was for example atatatat the output would bet <span style="color:red;">atatatat</span> because the second atat doesn't use any part of the first match.
+
+**Main**
+1. First check the number of arguments, it should be 3, the ./reverse, the name of the source file and the name of the destination file.
+2. Check if the destination file already exists, if it exists it stops because it shouldn't exist.
+3. Check if the source file exists, it only continues if it does.
+4. Open both files and get the length of the source file.
+5. Read the source file.
+6. Reverse the lines.
+7. Write on the destination file.
+8. Close both files.
+
+### 2. Grep Naive (`grep-naive/grep.dfy`)
+
+1. First check the number of arguments, it should be 3, the ./grep, the pattern and the file name.
+2. Check if the source file exists, it only continues if it does.
+3. Opens the file and get its length.
+4. Read the file.
+5. Does the grep.
+6. Close the file.
+
+### 3. Grep KMP (`grep-kmp/grep.dfy`)
+
+
 
 ### 2. Grep Naive & KMP Utilities (`grep-naive/grep.dfy` and `grep-kmp/grep.dfy`)
 Both naive and KMP string-matching utilities were implemented to search a source file for a given word.
