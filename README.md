@@ -63,6 +63,7 @@ make compile
 ```
 
 ### 1. Reverse Utility (`reverse/reverse.dfy`)
+
 The `reverse.dfy` utility reads a source file and writes in a new destination file (that can't exist before running the reverse) with the lines strictly reversed without removing empty lines either in the begining, in the middle or in the end of the file.
 
 To reverse the lines we created three methods, `SplitByNewline`, `ReverseLines` and `LinesToBytes`. The first creates a list with every line of the file, the second reverses the lines and in the third all the lines are concatenated again in the buffer to be called on the `Write` that is done after the three methods. The main part that we had to ensure on the three methods was that the size of the buffer was smaller than 0x80000000 that was the size of int32. If we didn't had any type of ensures on the methods we would need to assume that the buffer was smaller then 0x80000000 with `assume {:axiom} buffer.Length < 0x80000000`.
@@ -77,14 +78,18 @@ To reverse the lines we created three methods, `SplitByNewline`, `ReverseLines` 
 7. Write on the destination file.
 8. Close both files.
 
-**Design & Proof Chain:**
-To achieve memory safety verification without `assume` statements, we designed a robust mathematical chain mapping the abstract sequences of lines back to the concrete buffer bytes:
-1. **Mathematical Models:** We created two functions:
-   - `linesSize(lines)`: Computes the sum of all raw content bytes across the array of lines.
-   - `outputSize(lines)`: Computes the total exact bytes required for the final buffer, accounting for the `\n` separators (`linesSize(lines) + max(|lines|-1, 0)`).
-2. **Bounds Tracking:** We defined invariants in `SplitByNewline` guaranteeing that `outputSize(lines) <= |buffer|`. Since the initial `buffer.Length` is derived directly from `FileLength` (which yields an `int32` and thus `< 0x80000000`), Dafny proves `outputSize` must also be `< 0x80000000`.
-3. **Reversal Preservation:** We implemented recursive lemmas demonstrating that `ReverseLines` perfectly preserves the `outputSize` property.
-4. **Final Assembly:** The `LinesToBytes` loop invariants prove that the resulting flattened `byte` array has exactly `outputSize` length. Because `outputSize < 0x80000000`, the final `buffer.Length as int32` cast is completely verified and mathematically safe.
+??**Implementation Details:**
+- **File I/O Management:** The utility utilizes the `HostEnvironment` and `FileStream` APIs to safely check file existence, retrieve file lengths, and handle the reading/writing of byte buffers, ensuring all system interactions are correctly tracked in Dafny's state (`env.ok`, `env.files`).
+- **Parsing and Splitting (`SplitByNewline`):** We manually iterate through the file's raw byte array, isolating sequences of bytes delimited by the newline character (`\n` / ASCII 10) into a sequence of sequences (`seq<seq<byte>>`).
+- **Reversal (`ReverseLines`):** The parsed lines are iterated backwards and appended to a new sequence, efficiently reversing their order while maintaining the contents of each individual line.
+- **Serialization (`LinesToBytes`):** The reversed sequence of lines is flattened back into a single 1D `array<byte>`, with the `\n` separator precisely re-inserted between lines.
+
+**Formal Verification & Memory Safety:**
+To mathematically prove the absence of out-of-bounds memory accesses and ensure loop termination, we developed a robust proof chain:
+1. **Mathematical Models:** We created two ghost functions: `linesSize(lines)` (total content bytes) and `outputSize(lines)` (total bytes including `\n` separators). 
+2. **Bounds Tracking:** We defined complex loop invariants in `SplitByNewline` to prove that `outputSize(lines) <= |buffer|`. Since the initial `buffer.Length` is derived directly from `FileLength` (which yields an `int32` and thus `< 0x80000000`), Dafny proves `outputSize` must also strictly be `< 0x80000000`.
+3. **Reversal Preservation:** Recursive lemmas were implemented to demonstrate that `ReverseLines` perfectly preserves the `outputSize` property.
+4. **Final Assembly:** The `LinesToBytes` loop invariants prove that the resulting flattened byte array has exactly `outputSize` length. This guaranteed that the final `buffer.Length as int32` cast is mathematically safe, allowing the code to be 100% verified without relying on unsafe `assume {:axiom}` statements.
 
 ### 2. Grep Naive & KMP Utilities (`grep-naive/grep.dfy` and `grep-kmp/grep.dfy`)
 
@@ -100,20 +105,21 @@ The `grep.dfy` utility receives a pattern and a file, reads the file and prints 
 7. Write on the destination file.
 8. Close both files.
 
+??Both naive and KMP string-matching utilities were implemented to search a source file for a given word.
+
+**Design Decisions:**
+- **KMP Optimization:** The `grep-kmp` implementation utilizes the Knuth-Morris-Pratt algorithm, operating in `O(N + M)` time. It correctly builds the `lps` (Longest Prefix Suffix) array in `O(M)` time to bypass redundant character checking during the `O(N)` search phase.
+- **Bonus Requirement - UNIX-Style Printing:** We went beyond the base requirement (printing `YES: <position>`) and implemented the **bonus challenge** for both algorithms: printing the exact matched lines from the file and highlighting the matched word in red using ANSI escape sequences.
+- **Architectural Separation:** To maintain the strict time complexity of the KMP algorithm while achieving the advanced line-printing logic, the implementation is explicitly decoupled into two phases:
+  1. **Search Phase:** The algorithm purely searches and returns a sequence of matched indices.
+  2. **Display Phase:** The `PrintMatchingLines` method processes the file byte array in a single O(N) pass. It does not perform string matching; instead, it checks the pre-computed KMP indices. When it hits a valid index, it uses the provided `word.Length` to toggle ANSI color flags, guaranteeing that the formatting pass does not degrade the overarching O(N) search complexity.
+
 ### 2. Grep Naive (`grep-naive/grep.dfy`)
 
-1. First check the number of arguments, it should be 3, the ./grep, the pattern and the file name.
-2. Check if the source file exists, it only continues if it does.
-3. Opens the file and get its length.
-4. Read the file.
-5. Does the grep.
-6. Close the file.
+
 
 ### 3. Grep KMP (`grep-kmp/grep.dfy`)
 
-
-
-### 2. Grep Naive & KMP Utilities (`grep-naive/grep.dfy` and `grep-kmp/grep.dfy`)
 Both naive and KMP string-matching utilities were implemented to search a source file for a given word.
 
 **Design Decisions:**

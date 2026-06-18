@@ -2,7 +2,6 @@
  * Verified Line Reverse Utility
  * Reads a source file and writes a destination file with all lines in reverse order.
  * The memory-safety proof chain guarantees buffer lengths never exceed int32 (0x80000000).
- * (See README.md for a detailed proof explanation).
  */
 
 include "Io.dfy"
@@ -49,7 +48,6 @@ lemma OutputSizeAppend(lines: seq<seq<byte>>, line: seq<byte>)
   }
 }
 
-// Split buffer on '\n' (ASCII 10).
 // Invariant links the processed bytes to outputSize, proving it stays within bounds.
 method SplitByNewline(buffer: seq<byte>) returns (lines: seq<seq<byte>>)
   requires |buffer| < 0x80000000
@@ -61,11 +59,8 @@ method SplitByNewline(buffer: seq<byte>) returns (lines: seq<seq<byte>>)
 
   while i < |buffer|
     invariant 0 <= i <= |buffer|
-    // Invariant: bytes accounted for = content in completed lines
-    //            + separating newlines between them
-    //            + content in current in-progress line
+    // content in completed lines + separating newlines between them + content in current in-progress line
     invariant outputSize(lines) + |currentLine| + (if |lines| > 0 then 1 else 0) <= i + (if |lines| == 0 then 0 else 0)
-    // Simplified: let's use the concrete count
     invariant linesSize(lines) + |currentLine| + |lines| == i
   {
     if buffer[i] == 10 {  // '\n'
@@ -87,21 +82,6 @@ method SplitByNewline(buffer: seq<byte>) returns (lines: seq<seq<byte>>)
   }
 }
 
-lemma LinesSizeReverse(lines: seq<seq<byte>>, i: int)
-  requires 0 <= i <= |lines|
-  ensures linesSize(lines) == linesSize(lines[..i]) + linesSize(lines[i..])
-{
-  if i == 0 {
-    assert lines[..0] == [];
-  } else {
-    assert lines[..i] == [lines[0]] + lines[1..i];
-    LinesSizeReverse(lines[1..], i - 1);
-    assert lines[1..][..i-1] == lines[1..i];
-    assert lines[1..][i-1..] == lines[i..];
-  }
-}
-
-// Reverse the order of lines; preserves linesSize and outputSize.
 method ReverseLines(lines: seq<seq<byte>>) returns (reversed: seq<seq<byte>>)
   requires outputSize(lines) < 0x80000000
   ensures |reversed| == |lines|
@@ -125,8 +105,6 @@ method ReverseLines(lines: seq<seq<byte>>) returns (reversed: seq<seq<byte>>)
 }
 
 // Convert lines back to a flat buffer with '\n' separators.
-// Output length == outputSize(lines), proven by the loop invariant on |result|.
-// Since outputSize(lines) < 0x80000000, buffer.Length < 0x80000000 — no assume needed.
 method LinesToBytes(lines: seq<seq<byte>>) returns (buffer: array<byte>)
   requires outputSize(lines) < 0x80000000
   ensures buffer.Length == outputSize(lines)
@@ -152,8 +130,6 @@ method LinesToBytes(lines: seq<seq<byte>>) returns (buffer: array<byte>)
     i := i + 1;
   }
 
-  // After loop: i == |lines|.
-  // Invariant gives: |result| == linesSize(lines[..|lines|]) + |lines| - 1
   assert lines[..|lines|] == lines;
   assert |result| == outputSize(lines);
 
