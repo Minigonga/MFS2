@@ -26,7 +26,7 @@ Create a file in the grep-naive directory with text to search through.
 ```bash
 cd grep-naive
 dafny grep.dfy IoNative.cs
-./grep <word> <file>
+./grep <pattern> <file>    # If the pattern has spaces it needs to be between "".
 ```
 
 ### Grep KMP
@@ -36,7 +36,7 @@ Create a file in the grep-kmp directory with text to search through.
 ```bash
 cd grep-kmp
 dafny grep.dfy IoNative.cs
-./grep <word> <file>
+./grep <pattern> <file>    # If the pattern has spaces it needs to be between "".
 ```
 
 ## What it does?
@@ -72,7 +72,7 @@ To mathematically prove the absence of out-of-bounds memory accesses and ensure 
 
 ### 2. Grep Naive & KMP Utilities (`grep-naive/grep.dfy` and `grep-kmp/grep.dfy`)
 
-The `grep.dfy` utility receives a pattern and a file, reads the file and prints all the lines from the file that have the word in it, the word is also highlighted with a different colour (red). In cases like the pattern is atat and there is a section with atatat the text will appear with only the first atat with the red colour <span style="color:red;">atat</span>at, like this because the method searches for a word and doesn't use any part of that word to match another word. In a case where the section was for example atatatat the output would bet <span style="color:red;">atatatat</span> because the second atat doesn't use any part of the first match.
+The `grep.dfy` utility receives a pattern and a file, reads the file and prints all the lines from the file that have the word in it, the word is also highlighted with a different colour (red). In cases like the pattern is atat and there is a section with atatat the text will appear with only the first atat with the red colour <span style="color:red;">atat</span>at, like this because the method searches for a word and doesn't use any part of that word to match another word. In a case where the section was for example atatatat the output would bet <span style="color:red;">atatatat</span> because the second atat doesn't use any part of the first match. For the pattern it is not needed to have "" but if the pattern has spaces it is.
 
 **Main**
 1. First check the number of arguments, it should be 3, the ./reverse, the name of the source file and the name of the destination file.
@@ -84,26 +84,20 @@ The `grep.dfy` utility receives a pattern and a file, reads the file and prints 
 7. Write on the destination file.
 8. Close both files.
 
-??Both naive and KMP string-matching utilities were implemented to search a source file for a given word.
+### 2.1 Grep Naive (`grep-naive/grep.dfy`)
 
-**Design Decisions:**
-- **KMP Optimization:** The `grep-kmp` implementation utilizes the Knuth-Morris-Pratt algorithm, operating in `O(N + M)` time. It correctly builds the `lps` (Longest Prefix Suffix) array in `O(M)` time to bypass redundant character checking during the `O(N)` search phase.
-- **Bonus Requirement - UNIX-Style Printing:** We went beyond the base requirement (printing `YES: <position>`) and implemented the **bonus challenge** for both algorithms: printing the exact matched lines from the file and highlighting the matched word in red using ANSI escape sequences.
-- **Architectural Separation:** To maintain the strict time complexity of the KMP algorithm while achieving the advanced line-printing logic, the implementation is explicitly decoupled into two phases:
-  1. **Search Phase:** The algorithm purely searches and returns a sequence of matched indices.
-  2. **Display Phase:** The `PrintMatchingLines` method processes the file byte array in a single O(N) pass. It does not perform string matching; instead, it checks the pre-computed KMP indices. When it hits a valid index, it uses the provided `word.Length` to toggle ANSI color flags, guaranteeing that the formatting pass does not degrade the overarching O(N) search complexity.
+This grep implementation uses the **naive string-matching algorithm**, which runs in **O(n * m)** time in the worst case, where n is the size of the file and m is the size of the pattern. The algorithm scans the file character by character and, at each position, attempts to match the entire pattern against the following characters in the text.
 
-### 2. Grep Naive (`grep-naive/grep.dfy`)
+As its name suggests, this is a straightforward approach because it does not use any information from previous comparisons. Whenever a mismatch occurs, the algorithm simply moves to the next position in the file and starts comparing the pattern from the beginning again. In the worst case, this can require up to m comparisons for each of the n positions in the file, resulting in the time complexity we talked before.
 
+To keep the implementation simple and avoid additional memory usage, lines are printed as soon as they are fully processed and a match has been found, rather than storing all matching lines and printing them later.
 
+### 2.2 Grep KMP (`grep-kmp/grep.dfy`)
 
-### 3. Grep KMP (`grep-kmp/grep.dfy`)
+This grep implementation uses the **Knuth-Morris-Pratt (KMP)** algorithm, which runs in **O(n + m)** time, where n is the size of the file and m is the size of the pattern. Unlike the naive implementation, which may repeatedly compare future characters after each mismatch, KMP processes each character of the file at most once. When a mismatch occurs, it does not restart the comparison from the next file position. Instead, it uses information about the pattern itself to determine where the next comparison should begin.
 
-Both naive and KMP string-matching utilities were implemented to search a source file for a given word.
+To achieve this, KMP first builds an **LPS (Longest Proper Prefix which is also a Suffix)** array (implemented in our code as `constructLps`). The LPS array stores, for each position in the pattern, the length of the longest prefix that is also a suffix of the substring ending at that position. This allows the algorithm to skip unnecessary comparisons after a mismatch.
 
-**Design Decisions:**
-- **KMP Optimization:** The `grep-kmp` implementation utilizes the Knuth-Morris-Pratt algorithm, operating in `O(N + M)` time. It correctly builds the `lps` (Longest Prefix Suffix) array in `O(M)` time to bypass redundant character checking during the `O(N)` search phase.
-- **Bonus Requirement - UNIX-Style Printing:** We went beyond the base requirement (printing `YES: <position>`) and implemented the **bonus challenge** for both algorithms: printing the exact matched lines from the file and highlighting the matched word in red using ANSI escape sequences.
-- **Architectural Separation:** To maintain the strict time complexity of the KMP algorithm while achieving the advanced line-printing logic, the implementation is explicitly decoupled into two phases:
-  1. **Search Phase:** The algorithm purely searches and returns a sequence of matched indices.
-  2. **Display Phase:** The `PrintMatchingLines` method processes the file byte array in a single O(N) pass. It does not perform string matching; instead, it checks the pre-computed KMP indices. When it hits a valid index, it uses the provided `word.Length` to toggle ANSI color flags, guaranteeing that the formatting pass does not degrade the overarching O(N) search complexity.
+For example, for the pattern **"ababc"**, the LPS array is **[0, 0, 1, 2, 0]**. At index 2 ('a'), the value is 1 because the prefix "a" is also a suffix of "aba". At index 3 ('b'), the value is 2 because "ab" is both a prefix and a suffix of "abab". These values help the algorithm continue matching from the longest valid prefix instead of starting over, improving efficiency compared to the naive approach.
+
+In this implementation we decided to get the initial position where the pattern appears and then print the lines that has the pattern there.
