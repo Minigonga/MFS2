@@ -86,7 +86,7 @@ To mathematically prove the absence of out-of-bounds memory accesses and ensure 
 
 The `grep.dfy` utility receives a pattern and a file, reads the file and prints all the lines from the file that have the word in it, the word is also highlighted with a different colour (red). In cases like the pattern is atat and there is a section with atatat the text will appear with only the first atat with the red colour <span style="color:red;">atat</span>at, like this because the method searches for a word and doesn't use any part of that word to match another word. In a case where the section was for example atatatat the output would bet <span style="color:red;">atatatat</span> because the second atat doesn't use any part of the first match. For the pattern it is not needed to have "" but if the pattern has spaces it is.
 
-**Main**
+**Execution Flow (Main):**
 1. First check the number of arguments, it should be 3, the ./reverse, the name of the source file and the name of the destination file.
 2. Check if the destination file already exists, if it exists it stops because it shouldn't exist.
 3. Check if the source file exists, it only continues if it does.
