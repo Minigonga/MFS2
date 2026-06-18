@@ -26,7 +26,7 @@ method FindPatternInFile(word: array<char>, fileContent: array<byte>)
     while pos < contentLen
     invariant 0 <= pos <= contentLen + word.Length
     {
-        // End of line
+        // End of line: flush the current line and reset state
         if fileContent[pos] == 10 {
             if wordOnLine {
                 print line, "\n";
