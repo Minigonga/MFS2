@@ -5,30 +5,86 @@
 
 include "Io.dfy"
 
+predicate wordMatchesAtPosition(posText: int, txt: array<byte>, posWord: int, word: array<char>, len: int)
+requires 0 <= posText
+requires 0 <= posWord
+requires 0 <= len
+requires posText + len <= txt.Length
+requires posWord + len <= word.Length
+reads txt, word
+{
+    len == 0 || (txt[posText + len - 1] as char == word[posWord + len - 1] && wordMatchesAtPosition(posText, txt, posWord, word, len - 1))
+}
+
 // Helper method to find all positions where pattern occurs in file content
-method FindPatternInFile(word: array<char>, fileContent: array<byte>)
-    requires word.Length > 0
+method FindPatternInFile(word: array<char>, fileContent: array<byte>) returns (positions: seq<int>)
+requires word.Length > 0
+ensures forall k :: 0 <= k < |positions| ==> 0 <= positions[k] <= fileContent.Length - word.Length
+ensures forall k :: 0 <= k < |positions| ==> wordMatchesAtPosition(positions[k], fileContent, 0, word, word.Length)
 {
     var contentLen := fileContent.Length;
 
-    // Impossible to find a match if the pattern is longer than the text.
-    if (contentLen < word.Length){
+    positions := [];
+
+    if contentLen < word.Length {
         return;
     }
+
     var pos := 0;
+    var matches := true;
+    while pos <= contentLen - word.Length
+    invariant 0 <= pos <= contentLen 
+    invariant forall k :: 0 <= k < |positions| ==> 0 <= positions[k] <= contentLen - word.Length
+    invariant forall k :: 0 <= k < |positions| ==> wordMatchesAtPosition(positions[k], fileContent, 0, word, word.Length)
+    decreases contentLen - pos
+    {
+        matches := true;
+        var i := 0;
+
+        while i < word.Length && matches
+        invariant 0 <= i <= word.Length
+        invariant matches ==> wordMatchesAtPosition(pos, fileContent, 0, word, i)
+        {
+            if fileContent[pos + i] as char != word[i] {
+                matches := false;
+            }
+            i := i + 1;
+        }
+
+        if matches {
+            positions := positions + [pos];
+            pos := pos + word.Length;
+        } else{
+            pos := pos + 1;
+        }
+
+    }
+}
+
+// Prints each file line that contains a KMP match, highlighting matched words in red.
+// positions must be sorted ascending (guaranteed by the KMP search order) and each
+// position must satisfy positions[k] + word.Length <= fileContent.Length.
+method PrintSearchResult(word: array<char>, fileContent: array<byte>, positions: seq<int>)
+requires word.Length > 0
+requires forall k :: 0 <= k < |positions| ==> 0 <= positions[k] <= fileContent.Length - word.Length
+requires forall k :: 0 <= k < |positions| ==> wordMatchesAtPosition(positions[k], fileContent, 0, word, word.Length)
+{
+    if |positions| == 0 { return; }
+
     var esc := [27 as char, '['];
     var red := ['3','1','m'];
     var reset := ['0','m'];
+    var contentLen := fileContent.Length;
+    var pos := 0;
+    var matchIdx := 0;
     var line: seq<char> := [];
     var wordOnLine := false;
-    var position := 0;
-    var matches := true;
-    var i := 0;
 
     while pos < contentLen
-    invariant 0 <= pos <= contentLen + word.Length
+        invariant 0 <= pos <= contentLen
+        invariant 0 <= matchIdx <= |positions|
     {
-        // End of line: flush the current line and reset state
+        // End of line
         if fileContent[pos] == 10 {
             // Print the line because the pattern exists on it
             if wordOnLine {
@@ -41,39 +97,25 @@ method FindPatternInFile(word: array<char>, fileContent: array<byte>)
             continue;
         }
 
-        if pos < contentLen - word.Length + 1 {
-            matches := true;
-            i := 0;
-            // Check for a match starting at pos
-            while i < word.Length && matches
-            invariant 0 <= i <= word.Length
-            {
-                if fileContent[pos + i] as char != word[i] {
-                    matches := false;
-                }
-                i := i + 1;
-            }
-        } else{
-            matches := false;
-        }
-        // If there is a match adds the word to the line with the red colour
-        // and passes the full word to avoid overlaping of patterns
-        if matches {
-            position := pos;
+        // If this byte is the start of the next KMP match, highlight the word
+        if matchIdx < |positions| && pos == positions[matchIdx] {
+            var startPos := pos;
+            assert startPos + word.Length <= fileContent.Length;
             wordOnLine := true;
             line := line + esc + red; // Used to put the output as red
-                while pos < position + word.Length
-                invariant 0 <= pos <= word.Length + position
-                {   
-                    line := line + [fileContent[pos] as char];
-                    pos := pos + 1;
-                }
+            while pos < startPos + word.Length
+                invariant startPos <= pos <= startPos + word.Length
+                invariant pos <= fileContent.Length
+            {
+                line := line + [fileContent[pos] as char];
+                pos := pos + 1;
+            }
             line := line + esc + reset; // Used to reset the colour of the output
-        } else{
-            line := line + [fileContent[pos] as char]; // Simply add the letter with normal colour to the line because it wasn't part of any match
+            matchIdx := matchIdx + 1;
+        } else {
+            line := line + [fileContent[pos] as char];
             pos := pos + 1;
         }
-
     }
 
     // Handle last line if file doesn't end with '\n'
@@ -135,8 +177,10 @@ method {:main} Main(ghost env: HostEnvironment?)
     }
     
     // Find all positions where the pattern occurs
-    FindPatternInFile(word, buffer);
+    var positions := FindPatternInFile(word, buffer);
 
+    PrintSearchResult(word, buffer, positions);
+    
     // Close the file
     var closeOk := file.Close();
     if !closeOk {
